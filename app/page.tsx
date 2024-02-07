@@ -19,6 +19,7 @@ import {
 import { ActiveElement } from "@/types/type";
 import { useMutation, useStorage } from "@/liveblocks.config";
 import { defaultNavElement } from "@/constants";
+import { handleDelete } from "@/lib/key-events";
 
 export default function Page() {
   const [activeElement, setActiveElement] = useState<ActiveElement>({
@@ -42,13 +43,35 @@ export default function Page() {
     return canvasObjects.size === 0;
   }, []);
 
+  const deleteShapeFromStorage = useMutation(({ storage }, shapeId) => {
+    /**
+     * canvasObjects is a Map that contains all the shapes in the key-value.
+     * Like a store. We can create multiple stores in liveblocks.
+     *
+     * delete: https://liveblocks.io/docs/api-reference/liveblocks-client#LiveMap.delete
+     */
+    const canvasObjects = storage.get("canvasObjects");
+    canvasObjects.delete(shapeId);
+  }, []);
+
   const handleActiveElement = (elem: ActiveElement) => {
     setActiveElement(elem);
 
     switch (elem?.value) {
       case "reset":
+        // clear the storage
         deleteAllShapes();
+        // clear the canvas
         fabricRef.current?.clear();
+        // set "select" as the active element
+        setActiveElement(defaultNavElement);
+        break;
+
+      // delete the selected shape from the canvas
+      case "delete":
+        // delete it from the canvas
+        handleDelete(fabricRef.current as any, deleteShapeFromStorage);
+        // set "select" as the active element
         setActiveElement(defaultNavElement);
         break;
 
@@ -126,6 +149,10 @@ export default function Page() {
 
     window.addEventListener("resize", () => {
       handleResize({ canvas: fabricRef.current });
+
+      return () => {
+        canvas.dispose();
+      };
     });
   }, []);
 
