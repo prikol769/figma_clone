@@ -9,10 +9,13 @@ import RightSidebar from "@/components/RightSidebar";
 import { useEffect, useRef, useState } from "react";
 import {
   handleCanvasMouseDown,
+  handleCanvasMouseUp,
+  handleCanvaseMouseMove,
   handleResize,
   initializeFabric,
 } from "@/lib/canvas";
 import { ActiveElement } from "@/types/type";
+import { useMutation, useStorage } from "@/liveblocks.config";
 
 export default function Page() {
   const [activeElement, setActiveElement] = useState<ActiveElement>({
@@ -32,6 +35,22 @@ export default function Page() {
   const isDrawing = useRef(false);
   const shapeRef = useRef<fabric.Object | null>(null);
   const selectedShapeRef = useRef<string | null>("rectangle");
+  const activeObjectRef = useRef<fabric.Object | null>(null);
+
+  const canvasObjects = useStorage((root) => root.canvasObjects);
+
+  const syncShapeInStorage = useMutation(({ storage }, object) => {
+    if (!object) return;
+
+    const { objectId } = object;
+
+    const shapeData = object.toJSON();
+    shapeData.objectId = objectId;
+
+    const canvasObjects = storage.get("canvasObjects");
+
+    canvasObjects.set(objectId, shapeData);
+  }, []);
 
   useEffect(() => {
     const canvas = initializeFabric({ canvasRef, fabricRef });
@@ -43,6 +62,29 @@ export default function Page() {
         isDrawing,
         shapeRef,
         selectedShapeRef,
+      });
+    });
+
+    canvas.on("mouse:move", (options) => {
+      handleCanvaseMouseMove({
+        options,
+        canvas,
+        isDrawing,
+        shapeRef,
+        selectedShapeRef,
+        syncShapeInStorage,
+      });
+    });
+
+    canvas.on("mouse:up", () => {
+      handleCanvasMouseUp({
+        canvas,
+        isDrawing,
+        shapeRef,
+        activeObjectRef,
+        selectedShapeRef,
+        syncShapeInStorage,
+        setActiveElement,
       });
     });
 
