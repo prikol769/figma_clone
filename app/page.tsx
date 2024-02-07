@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   handleCanvasMouseDown,
   handleCanvasMouseUp,
+  handleCanvasObjectModified,
   handleCanvaseMouseMove,
   handleResize,
   initializeFabric,
@@ -86,6 +87,13 @@ export default function Page() {
         selectedShapeRef,
         syncShapeInStorage,
         setActiveElement,
+      });
+    });
+
+    canvas.on("object:modified", (options) => {
+      handleCanvasObjectModified({
+        options,
+        syncShapeInStorage,
       });
     });
 
