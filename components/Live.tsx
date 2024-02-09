@@ -164,12 +164,12 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
       const y = event.clientY - event.currentTarget.getBoundingClientRect().y;
 
       // broadcast the cursor position to other users
-      updateMyPresence({
-        cursor: {
-          x,
-          y,
-        },
-      });
+      // updateMyPresence({
+      //   cursor: {
+      //     x,
+      //     y,
+      //   },
+      // });
     }
   }, []);
 

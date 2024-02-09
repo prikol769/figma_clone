@@ -42,10 +42,10 @@ const NewThreadCursor = ({ display }: { display: boolean }) => {
       }
 
       // set the coordinates of the cursor
-      setCoords({
-        x: e.clientX,
-        y: e.clientY,
-      });
+      // setCoords({
+      //   x: e.clientX,
+      //   y: e.clientY,
+      // });
     };
 
     document.addEventListener("mousemove", updatePosition, false);
