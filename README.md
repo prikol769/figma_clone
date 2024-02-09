@@ -1,7 +1,7 @@
 <div align="center">
   <br />
     <a href="https://figma-clone-tau.vercel.app/" target="_blank">
-      <img src="https://figma-clone-tau.vercel.app/" alt="Project Banner">
+     <img src="https://github.com/JavaScript-Mastery-Pro/figma-ts/assets/151519281/e03dc22d-0f45-464b-9dc3-f01f07906bee" alt="Project Banner">
     </a>
   <br />
 
