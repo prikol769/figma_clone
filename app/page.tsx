@@ -19,14 +19,25 @@ import {
 import { ActiveElement } from "@/types/type";
 import { useMutation, useStorage } from "@/liveblocks.config";
 import { defaultNavElement } from "@/constants";
-import { handleDelete } from "@/lib/key-events";
+import { handleDelete, handleKeyDown } from "@/lib/key-events";
 
 export default function Page() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fabricRef = useRef<fabric.Canvas | null>(null);
+  const isDrawing = useRef(false);
+  const shapeRef = useRef<fabric.Object | null>(null);
+  const selectedShapeRef = useRef<string | null>(null);
+  const activeObjectRef = useRef<fabric.Object | null>(null);
+
+  const canvasObjects = useStorage((root) => root.canvasObjects);
   const [activeElement, setActiveElement] = useState<ActiveElement>({
     name: "",
     value: "",
     icon: "",
   });
+
+  console.log(canvasObjects, "canvasObjects");
+
   const deleteAllShapes = useMutation(({ storage }) => {
     // get the canvasObjects store
     const canvasObjects = storage.get("canvasObjects");
@@ -58,6 +69,7 @@ export default function Page() {
     setActiveElement(elem);
 
     switch (elem?.value) {
+      // delete all the shapes from the canvas
       case "reset":
         // clear the storage
         deleteAllShapes();
@@ -76,58 +88,82 @@ export default function Page() {
         break;
 
       default:
+        // set the selected shape to the selected element
+        selectedShapeRef.current = elem?.value as string;
         break;
     }
-
-    selectedShapeRef.current = elem?.value as string;
   };
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fabricRef = useRef<fabric.Canvas | null>(null);
-  const isDrawing = useRef(false);
-  const shapeRef = useRef<fabric.Object | null>(null);
-  const selectedShapeRef = useRef<string | null>("rectangle");
-  const activeObjectRef = useRef<fabric.Object | null>(null);
-
-  const canvasObjects = useStorage((root) => root.canvasObjects);
-
   const syncShapeInStorage = useMutation(({ storage }, object) => {
+    // if the passed object is null, return
     if (!object) return;
-
     const { objectId } = object;
 
+    /**
+     * Turn Fabric object (kclass) into JSON format so that we can store it in the
+     * key-value store.
+     */
     const shapeData = object.toJSON();
     shapeData.objectId = objectId;
 
     const canvasObjects = storage.get("canvasObjects");
-
+    /**
+     * set is a method provided by Liveblocks that allows you to set a value
+     *
+     * set: https://liveblocks.io/docs/api-reference/liveblocks-client#LiveMap.set
+     */
     canvasObjects.set(objectId, shapeData);
   }, []);
 
   useEffect(() => {
-    const canvas = initializeFabric({ canvasRef, fabricRef });
+    // initialize the fabric canvas
+    const canvas = initializeFabric({
+      canvasRef,
+      fabricRef,
+    });
 
+    /**
+     * listen to the mouse down event on the canvas which is fired when the
+     * user clicks on the canvas
+     *
+     * Event inspector: http://fabricjs.com/events
+     * Event list: http://fabricjs.com/docs/fabric.Canvas.html#fire
+     */
     canvas.on("mouse:down", (options) => {
       handleCanvasMouseDown({
         options,
         canvas,
+        selectedShapeRef,
         isDrawing,
         shapeRef,
-        selectedShapeRef,
       });
     });
 
+    /**
+     * listen to the mouse move event on the canvas which is fired when the
+     * user moves the mouse on the canvas
+     *
+     * Event inspector: http://fabricjs.com/events
+     * Event list: http://fabricjs.com/docs/fabric.Canvas.html#fire
+     */
     canvas.on("mouse:move", (options) => {
       handleCanvaseMouseMove({
         options,
         canvas,
         isDrawing,
-        shapeRef,
         selectedShapeRef,
+        shapeRef,
         syncShapeInStorage,
       });
     });
 
+    /**
+     * listen to the mouse up event on the canvas which is fired when the
+     * user releases the mouse on the canvas
+     *
+     * Event inspector: http://fabricjs.com/events
+     * Event list: http://fabricjs.com/docs/fabric.Canvas.html#fire
+     */
     canvas.on("mouse:up", () => {
       handleCanvasMouseUp({
         canvas,
@@ -140,6 +176,15 @@ export default function Page() {
       });
     });
 
+    /**
+     * listen to the object modified event on the canvas which is fired
+     * when the user modifies an object on the canvas. Basically, when the
+     * user changes the width, height, color etc properties/attributes of
+     * the object or moves the object on the canvas.
+     *
+     * Event inspector: http://fabricjs.com/events
+     * Event list: http://fabricjs.com/docs/fabric.Canvas.html#fire
+     */
     canvas.on("object:modified", (options) => {
       handleCanvasObjectModified({
         options,
@@ -147,15 +192,40 @@ export default function Page() {
       });
     });
 
+    /**
+     * listen to the resize event on the window which is fired when the
+     * user resizes the window.
+     *
+     * We're using this to resize the canvas when the user resizes the
+     * window.
+     */
     window.addEventListener("resize", () => {
-      handleResize({ canvas: fabricRef.current });
-
-      return () => {
-        canvas.dispose();
-      };
+      handleResize({
+        canvas: fabricRef.current,
+      });
     });
-  }, []);
 
+    // dispose the canvas and remove the event listeners when the component unmounts
+    return () => {
+      /**
+       * dispose is a method provided by Fabric that allows you to dispose
+       * the canvas. It clears the canvas and removes all the event
+       * listeners
+       *
+       * dispose: http://fabricjs.com/docs/fabric.Canvas.html#dispose
+       */
+      canvas.dispose();
+
+      // remove the event listeners
+      window.removeEventListener("resize", () => {
+        handleResize({
+          canvas: null,
+        });
+      });
+    };
+  }, [canvasRef]); // run this effect only once when the component mounts and the canvasRef changes
+
+  // render the canvas when the canvasObjects from live storage changes
   useEffect(() => {
     renderCanvas({
       fabricRef,
